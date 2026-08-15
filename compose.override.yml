@@ -1,0 +1,51 @@
+services:
+  postgres:
+    mem_limit: 2g
+    pids_limit: 256
+
+  redis:
+    mem_limit: 512m
+    pids_limit: 128
+
+  migrate:
+    mem_limit: 512m
+    pids_limit: 128
+
+  api:
+    build:
+      target: test
+    environment:
+      APP_ENV: local
+      COOKIE_SECURE: "false"
+      TRUST_PROXY_HEADERS: "false"
+      REQUIRE_ORIGIN: "false"
+    ports:
+      - "127.0.0.1:8000:8000"
+    mem_limit: 1g
+    pids_limit: 256
+
+  scheduler:
+    mem_limit: 512m
+    pids_limit: 128
+
+  worker:
+    mem_limit: 1g
+    pids_limit: 256
+
+  notifier:
+    mem_limit: 512m
+    pids_limit: 128
+
+  maintenance:
+    mem_limit: 512m
+    pids_limit: 128
+
+  backup:
+    mem_limit: 1g
+    pids_limit: 128
+
+  web:
+    ports:
+      - "127.0.0.1:3000:80"
+    mem_limit: 256m
+    pids_limit: 128

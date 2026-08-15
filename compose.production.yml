@@ -1,0 +1,137 @@
+x-python-hardening: &python-hardening
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  postgres:
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 200
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_PASSWORD: null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+
+  redis:
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 100
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    <<: *python-hardening
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 100
+    environment:
+      POSTGRES_PASSWORD: null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+
+  api:
+    <<: *python-hardening
+    environment:
+      APP_ENV: production
+      COOKIE_SECURE: "true"
+      TRUST_PROXY_HEADERS: "true"
+      REQUIRE_ORIGIN: "true"
+      POSTGRES_PASSWORD: null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      ADMIN_PASSWORD: null
+      ADMIN_PASSWORD_FILE: /run/secrets/admin_password
+    mem_limit: 512m
+    cpus: 0.75
+    pids_limit: 128
+    secrets:
+      - postgres_password
+      - admin_password
+
+  scheduler:
+    <<: *python-hardening
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 100
+    environment:
+      POSTGRES_PASSWORD: null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+
+  worker:
+    <<: *python-hardening
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    environment:
+      POSTGRES_PASSWORD: null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+
+  notifier:
+    <<: *python-hardening
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 100
+    environment:
+      POSTGRES_PASSWORD: null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      SLACK_WEBHOOK_URL: null
+      SLACK_WEBHOOK_URL_FILE: /run/secrets/slack_webhook_url
+    secrets:
+      - postgres_password
+      - slack_webhook_url
+
+  maintenance:
+    <<: *python-hardening
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 100
+    environment:
+      POSTGRES_PASSWORD: null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+
+  backup:
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 100
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PGPASSWORD: null
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+
+  web:
+    ports:
+      # The future HTTPS reverse proxy will reach Netsuro through this local port.
+      # It is deliberately unavailable from the public network.
+      - "127.0.0.1:3000:80"
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+
+secrets:
+  postgres_password:
+    file: ${POSTGRES_PASSWORD_SECRET_FILE:-./secrets/postgres_password.txt}
+  admin_password:
+    file: ${ADMIN_PASSWORD_SECRET_FILE:-./secrets/admin_password.txt}
+  slack_webhook_url:
+    file: ${SLACK_WEBHOOK_SECRET_FILE:-./secrets/slack_webhook_url.txt}

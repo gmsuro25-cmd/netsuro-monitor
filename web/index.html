@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Netsuro Monitor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a0d12;
+      --panel: #121720;
+      --panel-2: #181f2a;
+      --border: #273142;
+      --text: #f4f7fb;
+      --muted: #929db0;
+      --green: #36d399;
+      --yellow: #f5b942;
+      --red: #fb7185;
+      --blue: #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    button, input, select, textarea { font: inherit; }
+    header { border-bottom: 1px solid var(--border); }
+    .header-inner, main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+    .header-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+    .brand-mark { width: 12px; height: 12px; border-radius: 50%; background: var(--green); box-shadow: 0 0 18px color-mix(in srgb, var(--green) 65%, transparent); }
+    .updated { color: var(--muted); font-size: 14px; }
+    main { padding: 36px 0 60px; }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 44px); letter-spacing: -0.04em; }
+    .intro p { margin: 0; color: var(--muted); }
+    .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
+    .metric, .card, .form-panel, .incident { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; }
+    .metric { padding: 18px; }
+    .metric span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+    .metric strong { font-size: 28px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 30px 0 14px; }
+    h2 { margin: 0; font-size: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { padding: 18px; }
+    .card-top { display: flex; justify-content: space-between; gap: 16px; }
+    .name { font-weight: 650; margin-bottom: 6px; }
+    .url { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+    .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+    .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .UP { color: var(--green); } .DOWN { color: var(--red); } .DEGRADED, .RECOVERING { color: var(--yellow); } .PENDING { color: var(--muted); }
+    .status-stack { display: grid; justify-items: end; gap: 7px; }
+    .admin-state { color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 3px 7px; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+    .admin-state.active { color: var(--green); }
+    .monitor-group + .monitor-group { margin-top: 26px; }
+    .monitor-group-title { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 10px; }
+    .project { margin-bottom: 34px; }
+    .project-head { display: flex; align-items: start; justify-content: space-between; gap: 18px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .project-head h3 { margin: 0 0 5px; font-size: 20px; }
+    .project-head p { margin: 0; color: var(--muted); font-size: 13px; }
+    .project-actions { display: flex; align-items: center; gap: 10px; }
+    .details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+    .detail { padding: 10px; background: var(--panel-2); border-radius: 9px; }
+    .detail span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+    .detail strong { font-size: 13px; }
+    .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; color: var(--muted); font-size: 12px; }
+    button { border: 1px solid var(--border); border-radius: 9px; background: var(--panel-2); color: var(--text); padding: 8px 12px; cursor: pointer; }
+    button:hover { border-color: var(--blue); }
+    button.primary { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 650; }
+    button.danger { color: var(--red); }
+    .card.archived { opacity: .62; }
+    .form-panel { padding: 18px; }
+    form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: end; }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    input, select, textarea { width: 100%; border: 1px solid var(--border); border-radius: 9px; background: var(--panel-2); color: var(--text); padding: 10px 11px; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--blue); }
+    .incidents { display: grid; gap: 10px; }
+    .incident { padding: 15px 17px; display: flex; justify-content: space-between; gap: 20px; }
+    .incident small { color: var(--muted); }
+    .empty { color: var(--muted); padding: 20px 0; }
+    .error { color: var(--red); min-height: 20px; margin-top: 10px; font-size: 13px; }
+    .toggle { display: flex; grid-auto-flow: column; align-items: center; gap: 8px; }
+    .toggle input { width: auto; }
+    dialog { width: min(520px, calc(100% - 28px)); border: 1px solid var(--border); border-radius: 16px; background: var(--panel); color: var(--text); padding: 22px; }
+    dialog::backdrop { background: rgba(0, 0, 0, .72); }
+    dialog h2 { margin-bottom: 18px; }
+    .edit-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .edit-form .wide { grid-column: 1 / -1; }
+    .dialog-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
+    .dialog-actions div { display: flex; gap: 8px; }
+    .hidden { display: none !important; }
+    .history-dialog { width: min(900px, calc(100% - 28px)); }
+    .history-head { display: flex; justify-content: space-between; align-items: start; gap: 18px; margin-bottom: 18px; }
+    .history-head h2 { margin: 0 0 5px; }
+    .periods { display: flex; gap: 7px; }
+    .periods button.selected { background: var(--text); color: var(--bg); }
+    .history-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+    .history-summary .detail strong { font-size: 18px; }
+    .chart { height: 180px; display: flex; align-items: end; gap: 3px; padding: 18px 4px 4px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+    .bar { flex: 1; min-width: 3px; max-width: 18px; background: var(--green); border-radius: 3px 3px 0 0; opacity: .8; }
+    .bar.failure { background: var(--red); }
+    .history-columns { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; }
+    .history-list { display: grid; gap: 7px; margin-top: 10px; }
+    .history-row { display: flex; justify-content: space-between; gap: 14px; padding: 9px 10px; background: var(--panel-2); border-radius: 8px; font-size: 12px; }
+    .history-row span:last-child { color: var(--muted); }
+    .system-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .system-card { padding: 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; }
+    .system-card-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .system-card strong { font-size: 13px; }
+    .system-card p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .system-card { cursor: pointer; }
+    .system-card:hover { border-color: var(--blue); }
+    .monitor-dialog { width: min(900px, calc(100% - 28px)); }
+    .monitor-dialog .form-panel { padding: 0; border: 0; }
+    .incident { cursor: pointer; }
+    .incident:hover { border-color: var(--blue); }
+    .stacked-bar { flex: 1; min-width: 8px; max-width: 20px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; border-radius: 3px 3px 0 0; background: var(--panel-2); }
+    .bar-success { background: var(--green); }
+    .bar-failure { background: var(--red); }
+    .incident-detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .login-dialog { width: min(420px, calc(100% - 28px)); }
+    .login-dialog form { grid-template-columns: 1fr; }
+    .workspace-nav { display: flex; gap: 6px; padding: 6px; margin-bottom: 28px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); overflow-x: auto; }
+    .workspace-nav button { flex: 1; min-width: max-content; border-color: transparent; background: transparent; color: var(--muted); }
+    .workspace-nav button[aria-selected="true"] { background: var(--panel-2); border-color: var(--border); color: var(--text); }
+    .view-panel { display: none; }
+    .view-panel.active { display: block; }
+    .view-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+    .view-heading h2 { font-size: 24px; margin-bottom: 5px; }
+    .view-heading p { color: var(--muted); margin: 0; font-size: 13px; }
+    .view-actions { display: flex; gap: 8px; }
+    .backup-status { display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px; }
+    .backup-feature { padding: 20px; background: linear-gradient(135deg, color-mix(in srgb, var(--green) 10%, var(--panel)), var(--panel)); border: 1px solid var(--border); border-radius: 14px; }
+    .backup-feature .eyebrow { color: var(--green); font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .backup-feature h3 { margin: 9px 0 7px; font-size: 22px; }
+    .backup-feature p, .operations-note { color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .backup-list { display: grid; gap: 8px; margin-top: 14px; }
+    .backup-file { display: flex; justify-content: space-between; gap: 14px; padding: 10px 12px; background: var(--panel-2); border-radius: 9px; font-size: 12px; }
+    .backup-file span:last-child { color: var(--muted); white-space: nowrap; }
+    .backup-status > .summary { grid-template-columns: 1fr; margin: 0; }
+    .notification-head-meta { display: flex; align-items: center; gap: 12px; }
+    .delivery-history { display: grid; gap: 8px; }
+    .delivery-row { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 12px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+    .delivery-result { font-size: 12px; font-weight: 750; }
+    .delivery-result.success { color: var(--green); }
+    .delivery-result.failure { color: var(--red); }
+    .delivery-context strong, .delivery-context span { display: block; }
+    .delivery-context strong { font-size: 13px; margin-bottom: 3px; }
+    .delivery-context span, .delivery-time { color: var(--muted); font-size: 11px; }
+    .delivery-error { color: var(--red) !important; overflow-wrap: anywhere; }
+    .delivery-row button { padding: 6px 9px; font-size: 11px; }
+    @media (max-width: 760px) {
+      .intro { align-items: start; flex-direction: column; }
+      .grid, .summary { grid-template-columns: 1fr; }
+      form { grid-template-columns: 1fr; }
+      .details { grid-template-columns: 1fr 1fr; }
+      .history-summary { grid-template-columns: 1fr 1fr; }
+      .history-columns { grid-template-columns: 1fr; }
+      .system-grid { grid-template-columns: 1fr 1fr; }
+      .incident-detail-grid { grid-template-columns: 1fr; }
+      .view-heading { align-items: start; flex-direction: column; }
+      .backup-status { grid-template-columns: 1fr; }
+      .delivery-row { grid-template-columns: auto 1fr; }
+      .delivery-time { grid-column: 2; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="brand"><span class="brand-mark"></span>Netsuro Monitor</div>
+      <div><span class="updated" id="updated">Loading…</span> <button id="logout" class="hidden">Sign out</button></div>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro">
+      <div><h1>System status</h1><p>Availability, latency, and incidents in one place.</p></div>
+      <div><button id="refresh">Refresh</button></div>
+    </section>
+
+    <nav class="workspace-nav" aria-label="Dashboard sections">
+      <button data-view="overview" aria-selected="true">Overview</button>
+      <button data-view="monitors" aria-selected="false">Monitors</button>
+      <button data-view="incidents" aria-selected="false">Incidents</button>
+      <button data-view="operations" aria-selected="false">Operations</button>
+    </nav>
+
+    <section class="view-panel active" data-view-panel="overview">
+      <div class="view-heading"><div><h2>Overview</h2><p>The current state of everything Netsuro watches.</p></div></div>
+      <section class="summary" aria-label="Summary">
+        <div class="metric"><span>Operational</span><strong id="up-count">—</strong></div>
+        <div class="metric"><span>With issues</span><strong id="problem-count">—</strong></div>
+        <div class="metric"><span>Open incidents</span><strong id="incident-count">—</strong></div>
+      </section>
+      <div class="section-head"><h2>Netsuro health</h2><span class="updated">Select a component to see its history</span></div>
+      <section class="system-grid" id="system-health" aria-label="Internal component health"></section>
+    </section>
+
+    <section class="view-panel" data-view-panel="monitors">
+      <div class="view-heading"><div><h2>Monitors</h2><p>Websites, APIs, and heartbeat-based jobs grouped by project.</p></div><div class="view-actions"><button id="new-project">New project</button><button class="primary" id="new-monitor">New monitor</button></div></div>
+      <div class="section-head"><span class="updated">Active, paused, and archived monitors</span><label class="toggle"><input type="checkbox" id="show-archived"> Show archived</label></div>
+      <section id="monitors"></section>
+    </section>
+
+    <section class="view-panel" data-view-panel="incidents">
+      <div class="view-heading"><div><h2>Incidents</h2><p>Failures detected in your monitors and in Netsuro itself.</p></div></div>
+      <div class="section-head"><h2>Internal incidents</h2><span class="updated">Netsuro and its containers</span></div>
+      <section class="incidents" id="system-incidents"></section>
+      <div class="section-head"><h2>Monitor incidents</h2><span class="updated">External services and heartbeats</span></div>
+      <section class="incidents" id="incidents"></section>
+    </section>
+
+    <section class="view-panel" data-view-panel="operations">
+      <div class="view-heading"><div><h2>Operations</h2><p>Delivery channels, data protection, and operational safeguards.</p></div></div>
+      <div class="section-head"><h2>Database backups</h2><span class="updated" id="backup-health">Checking storage…</span></div>
+      <section class="backup-status">
+        <article class="backup-feature"><span class="eyebrow">Latest backup</span><h3 id="backup-latest">—</h3><p id="backup-latest-detail">Waiting for backup information.</p><div class="backup-list" id="backup-list"></div></article>
+        <section class="summary" aria-label="Backup summary">
+          <div class="metric"><span>Stored copies</span><strong id="backup-count">—</strong></div>
+          <div class="metric"><span>Total size</span><strong id="backup-size">—</strong></div>
+          <div class="metric"><span>Retention</span><strong id="backup-retention">—</strong></div>
+        </section>
+      </section>
+      <p class="operations-note" id="backup-verification">Restore verification has not been recorded yet.</p>
+      <div class="section-head"><h2>Slack notifications</h2><div class="notification-head-meta"><span class="status PENDING" id="notification-status">Checking</span><span class="updated" id="notification-last-sent">No deliveries</span></div></div>
+      <section class="summary" aria-label="Notification summary">
+        <div class="metric"><span>Sent</span><strong id="notification-sent">—</strong></div>
+        <div class="metric"><span>Pending</span><strong id="notification-pending">—</strong></div>
+        <div class="metric"><span>Failed</span><strong id="notification-failed">—</strong></div>
+      </section>
+      <p class="operations-note" id="notification-error"></p>
+      <div class="section-head"><h2>Slack delivery history</h2><span class="updated">Most recent attempts</span></div>
+      <section class="delivery-history" id="notification-history"></section>
+    </section>
+  </main>
+
+  <dialog id="monitor-dialog" class="monitor-dialog">
+    <div class="history-head"><div><h2>New monitor</h2><div class="url">Configure the component you want to monitor</div></div><button type="button" id="cancel-monitor">Close</button></div>
+    <section class="form-panel">
+      <form id="monitor-form">
+        <label>Project<select name="project_id" id="project-select" required></select></label>
+        <label>Type<select name="monitor_type" id="monitor-type"><option value="HTTP">HTTP / HTTPS</option><option value="HEARTBEAT">Heartbeat</option></select></label>
+        <label>Name<input name="name" required maxlength="100" placeholder="My website"></label>
+        <label class="http-field">URL<input name="url" type="url" required placeholder="https://example.com"></label>
+        <label>Interval (s)<input name="interval_seconds" type="number" min="30" value="300" required></label>
+        <label class="http-field">Timeout (s)<input name="timeout_seconds" type="number" min="1" max="60" value="10" required></label>
+        <label class="http-field">Expected status code<input name="expected_status_code" type="number" min="100" max="599" value="200" required></label>
+        <label class="heartbeat-field hidden">Grace period (s)<input name="heartbeat_grace_seconds" type="number" min="0" max="3600" value="30"></label>
+        <button class="primary" type="submit">Add monitor</button>
+      </form>
+      <div class="error" id="form-error"></div>
+    </section>
+  </dialog>
+
+  <dialog id="login-dialog" class="login-dialog">
+    <h2>Sign in to Netsuro</h2>
+    <form id="login-form">
+      <label>Email<input name="email" type="email" autocomplete="username" required></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+    <div class="error" id="login-error"></div>
+  </dialog>
+
+  <dialog id="edit-dialog">
+    <h2>Edit monitor</h2>
+    <form id="edit-form" class="edit-form">
+      <input type="hidden" name="id">
+      <label class="wide">Project<select name="project_id" required></select></label>
+      <label>Type<input name="monitor_type" readonly></label>
+      <label class="wide">Name<input name="name" required maxlength="100"></label>
+      <label class="wide edit-http-field">URL<input name="url" type="url"></label>
+      <label>Interval (s)<input name="interval_seconds" type="number" min="30" required></label>
+      <label class="edit-http-field">Timeout (s)<input name="timeout_seconds" type="number" min="1" max="60" required></label>
+      <label class="edit-http-field">Expected status code<input name="expected_status_code" type="number" min="100" max="599" required></label>
+      <label class="edit-heartbeat-field hidden">Grace period (s)<input name="heartbeat_grace_seconds" type="number" min="0" max="3600"></label>
+      <div class="detail wide edit-heartbeat-field hidden">
+        <span>Secret URL</span>
+        <strong>Cannot be recovered for security reasons</strong>
+        <div class="actions"><span id="token-rotated-at"></span><button type="button" id="rotate-heartbeat-token">Generate new URL</button></div>
+      </div>
+      <label class="toggle">Archived<input name="is_archived" type="checkbox"></label>
+      <div class="error wide" id="edit-error"></div>
+      <div class="dialog-actions wide">
+        <button type="button" class="danger" id="delete-monitor">Delete permanently</button>
+        <div><button type="button" id="cancel-edit">Cancel</button><button class="primary" type="submit">Save</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="project-dialog">
+    <h2>Project</h2>
+    <form id="project-form" class="edit-form">
+      <input type="hidden" name="id">
+      <label class="wide">Name<input name="name" required maxlength="100"></label>
+      <label class="wide">Description<textarea name="description" rows="3" maxlength="500"></textarea></label>
+      <label class="toggle wide" id="project-archive-row">Archived<input name="is_archived" type="checkbox"></label>
+      <div class="error wide" id="project-error"></div>
+      <div class="dialog-actions wide"><span></span><div><button type="button" id="cancel-project">Cancel</button><button class="primary" type="submit">Save</button></div></div>
+    </form>
+  </dialog>
+
+  <dialog id="history-dialog" class="history-dialog">
+    <div class="history-head">
+      <div><h2 id="history-title">History</h2><div class="url" id="history-subtitle"></div></div>
+      <div class="periods"><button data-hours="24" class="selected">24 h</button><button data-hours="168">7 days</button><button data-hours="720">30 days</button><button id="close-history">Close</button></div>
+    </div>
+    <section class="history-summary">
+      <div class="detail"><span>Availability</span><strong id="history-uptime">—</strong></div>
+      <div class="detail"><span>Checks</span><strong id="history-total">—</strong></div>
+      <div class="detail"><span>Failures</span><strong id="history-failures">—</strong></div>
+      <div class="detail"><span>Average latency</span><strong id="history-latency">—</strong></div>
+    </section>
+    <div class="chart" id="history-chart" aria-label="Availability by period"></div>
+    <div class="history-columns">
+      <section><h2>Latest checks</h2><div class="history-list" id="history-checks"></div></section>
+      <section><h2>Incidents in this period</h2><div class="history-list" id="history-incidents"></div></section>
+    </div>
+  </dialog>
+
+  <dialog id="system-history-dialog" class="history-dialog">
+    <div class="history-head">
+      <div><h2 id="system-history-title">Internal history</h2><div class="url">One sample per minute</div></div>
+      <div class="periods" id="system-periods"><button data-hours="24" class="selected">24 h</button><button data-hours="168">7 days</button><button data-hours="720">30 days</button><button id="close-system-history">Close</button></div>
+    </div>
+    <section class="history-summary">
+      <div class="detail"><span>Availability</span><strong id="system-availability">—</strong></div>
+      <div class="detail"><span>Samples</span><strong id="system-samples">—</strong></div>
+      <div class="detail"><span>Failures</span><strong id="system-failures">—</strong></div>
+      <div class="detail"><span id="system-extra-label">Average latency</span><strong id="system-extra">—</strong></div>
+    </section>
+    <div class="chart" id="system-history-chart" aria-label="Internal availability by period"></div>
+    <section><h2>Latest samples</h2><div class="history-list" id="system-history-samples"></div></section>
+  </dialog>
+
+  <dialog id="incident-detail-dialog" class="history-dialog">
+    <div class="history-head">
+      <div><h2 id="incident-detail-title">Incident details</h2><div class="url" id="incident-detail-subtitle"></div></div>
+      <button id="close-incident-detail">Close</button>
+    </div>
+    <section class="incident-detail-grid">
+      <div class="detail"><span>Status</span><strong id="incident-detail-status">—</strong></div>
+      <div class="detail"><span>Started</span><strong id="incident-detail-start">—</strong></div>
+      <div class="detail"><span>Duration</span><strong id="incident-detail-duration">—</strong></div>
+    </section>
+    <section><h2>Detected cause</h2><div class="history-row" id="incident-detail-cause"></div></section>
+    <section style="margin-top: 20px"><h2>Sample timeline</h2><div class="history-list" id="incident-detail-samples"></div></section>
+  </dialog>
+
+  <script>
+    const api = "/api";
+    const monitorsEl = document.getElementById("monitors");
+    const incidentsEl = document.getElementById("incidents");
+    const systemHealthEl = document.getElementById("system-health");
+    const systemIncidentsEl = document.getElementById("system-incidents");
+    const editDialog = document.getElementById("edit-dialog");
+    const monitorDialog = document.getElementById("monitor-dialog");
+    const editForm = document.getElementById("edit-form");
+    let dashboardMonitors = [];
+    let dashboardProjects = [];
+    let historyMonitorId = null;
+    let systemHistoryComponent = null;
+
+    const formatDate = value => value ? new Intl.DateTimeFormat("en", { dateStyle: "short", timeStyle: "medium" }).format(new Date(value)) : "No data";
+    const formatBytes = value => {
+      if (!value) return "0 B";
+      const units = ["B", "KB", "MB", "GB"];
+      const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+      return `${(value / (1024 ** index)).toFixed(index ? 1 : 0)} ${units[index]}`;
+    };
+
+    function selectView(name) {
+      document.querySelectorAll("[data-view]").forEach(button => button.setAttribute("aria-selected", button.dataset.view === name));
+      document.querySelectorAll("[data-view-panel]").forEach(panel => panel.classList.toggle("active", panel.dataset.viewPanel === name));
+      localStorage.setItem("netsuro-dashboard-view", name);
+    }
+
+    function renderBackups(backups) {
+      document.getElementById("backup-count").textContent = backups.count;
+      document.getElementById("backup-size").textContent = formatBytes(backups.total_size_bytes);
+      document.getElementById("backup-retention").textContent = `${backups.retention_days} days`;
+      const latest = backups.latest;
+      document.getElementById("backup-latest").textContent = latest ? latest.name : "No backups yet";
+      document.getElementById("backup-latest-detail").textContent = latest
+        ? `${formatBytes(latest.size_bytes)} · Created ${formatDate(latest.created_at)}`
+        : "The backup service has not produced a database copy yet.";
+      document.getElementById("backup-health").textContent = backups.available ? "Persistent backup storage connected" : "Backup storage unavailable";
+      const list = document.getElementById("backup-list");
+      list.replaceChildren(...backups.recent.map(item => {
+        const row = document.createElement("div");
+        row.className = "backup-file";
+        row.innerHTML = "<span></span><span></span>";
+        row.children[0].textContent = item.name;
+        row.children[1].textContent = formatBytes(item.size_bytes);
+        return row;
+      }));
+      const verification = backups.last_verification;
+      document.getElementById("backup-verification").textContent = verification
+        ? `Restore verified successfully on ${formatDate(verification.verified_at)} using ${verification.backup_name}. Restores remain terminal-only for safety.`
+        : "No restore verification is recorded yet. Run the verification command once to validate the latest copy; restores remain terminal-only for safety.";
+    }
+
+    function renderNotificationAttempts(attempts) {
+      const history = document.getElementById("notification-history");
+      const retryShown = new Set();
+      history.replaceChildren(...attempts.map(attempt => {
+        const row = document.createElement("article");
+        row.className = "delivery-row";
+
+        const result = document.createElement("span");
+        result.className = `delivery-result ${attempt.succeeded ? "success" : "failure"}`;
+        result.textContent = attempt.succeeded ? "DELIVERED" : "FAILED";
+
+        const context = document.createElement("div");
+        context.className = "delivery-context";
+        const title = document.createElement("strong");
+        title.textContent = `${attempt.project_name} · ${attempt.subject_name || "System"}`;
+        const detail = document.createElement("span");
+        detail.textContent = `${attempt.event_type} notification #${attempt.notification_id}`;
+        context.append(title, detail);
+        if (attempt.error_message) {
+          const error = document.createElement("span");
+          error.className = "delivery-error";
+          error.textContent = attempt.error_message;
+          context.append(error);
+        }
+
+        const time = document.createElement("span");
+        time.className = "delivery-time";
+        time.textContent = formatDate(attempt.attempted_at);
+        row.append(result, context, time);
+
+        if (attempt.notification_status === "FAILED" && !retryShown.has(attempt.notification_id)) {
+          retryShown.add(attempt.notification_id);
+          const retry = document.createElement("button");
+          retry.textContent = "Retry";
+          retry.addEventListener("click", async () => {
+            retry.disabled = true;
+            try {
+              await request(`/notifications/${attempt.notification_id}/retry`, { method: "POST" });
+              await load();
+            } catch (error) {
+              retry.disabled = false;
+              alert(error.message);
+            }
+          });
+          row.append(retry);
+        }
+        return row;
+      }));
+      if (!attempts.length) history.innerHTML = '<p class="empty">No Slack delivery attempts yet.</p>';
+    }
+
+    async function request(path, options) {
+      const response = await fetch(`${api}${path}`, options);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const error = new Error(body.detail || `HTTP error ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      if (response.status === 204) return null;
+      return response.json();
+    }
+
+    function renderMonitor(monitor) {
+      const card = document.createElement("article");
+      card.className = `card${monitor.is_archived ? " archived" : ""}`;
+      const activeLabel = monitor.is_archived ? "Restore" : monitor.is_active ? "Pause" : "Activate";
+      const adminLabel = monitor.is_archived ? "ARCHIVED" : monitor.is_active ? "ACTIVE" : "PAUSED";
+      const adminClass = monitor.is_active && !monitor.is_archived ? " active" : "";
+      card.innerHTML = `
+        <div class="card-top">
+          <div><div class="name"></div><div class="url"></div></div>
+          <div class="status-stack"><span class="status ${monitor.current_status}">${monitor.current_status}</span><span class="admin-state${adminClass}">${adminLabel}</span></div>
+        </div>
+        <div class="details">
+          <div class="detail"><span>Type</span><strong>${monitor.monitor_type}</strong></div>
+          <div class="detail"><span>${monitor.monitor_type === "HEARTBEAT" ? "Latest signal" : "Latest HTTP"}</span><strong>${monitor.monitor_type === "HEARTBEAT" ? formatDate(monitor.last_heartbeat_at) : (monitor.latest_status_code ?? "—")}</strong></div>
+          <div class="detail"><span>Latency</span><strong>${monitor.latest_response_time_ms == null ? "—" : `${monitor.latest_response_time_ms} ms`}</strong></div>
+          <div class="detail"><span>Interval</span><strong>${monitor.interval_seconds} s</strong></div>
+        </div>
+        <div class="actions"><span>${formatDate(monitor.latest_checked_at)}</span><div><button class="history">History</button> <button class="edit">Edit</button> <button class="activate">${activeLabel}</button></div></div>`;
+      card.querySelector(".name").textContent = monitor.name;
+      card.querySelector(".url").textContent = monitor.monitor_type === "HEARTBEAT" ? "Incoming signal" : monitor.url;
+      card.querySelector(".activate").addEventListener("click", async () => {
+        await request(`/monitors/${monitor.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(monitor.is_archived
+            ? { is_archived: false }
+            : { is_active: !monitor.is_active })
+        });
+        await load();
+      });
+      card.querySelector(".edit").addEventListener("click", () => openEdit(monitor));
+      card.querySelector(".history").addEventListener("click", () => openHistory(monitor.id, 24));
+      return card;
+    }
+
+    async function openHistory(monitorId, hours) {
+      historyMonitorId = monitorId;
+      const history = await request(`/monitors/${monitorId}/history?hours=${hours}`);
+      document.getElementById("history-title").textContent = history.monitor.name;
+      document.getElementById("history-subtitle").textContent = history.monitor.monitor_type === "HEARTBEAT" ? "Signal history" : history.monitor.url;
+      document.getElementById("history-uptime").textContent = `${history.summary.success_rate.toFixed(2)} %`;
+      document.getElementById("history-total").textContent = history.summary.total_checks;
+      document.getElementById("history-failures").textContent = history.summary.failures;
+      document.getElementById("history-latency").textContent = history.summary.avg_response_time_ms == null ? "Not applicable" : `${history.summary.avg_response_time_ms.toFixed(0)} ms`;
+
+      const chart = document.getElementById("history-chart");
+      chart.replaceChildren(...history.points.map(point => {
+        const bar = document.createElement("div");
+        bar.className = `bar${point.availability < 100 ? " failure" : ""}`;
+        bar.style.height = `${Math.max(3, point.availability)}%`;
+        bar.title = `${formatDate(point.bucket)} · ${point.availability.toFixed(1)}% · ${point.checks} checks`;
+        return bar;
+      }));
+      if (!history.points.length) chart.innerHTML = '<p class="empty">No data for this period.</p>';
+
+      const checks = document.getElementById("history-checks");
+      checks.replaceChildren(...history.recent_checks.map(check => {
+        const row = document.createElement("div");
+        row.className = "history-row";
+        row.innerHTML = `<span class="${check.succeeded ? "UP" : "DOWN"}">${check.succeeded ? "Successful" : "Failed"}</span><span>${formatDate(check.checked_at)}</span>`;
+        return row;
+      }));
+      if (!history.recent_checks.length) checks.innerHTML = '<p class="empty">No checks yet.</p>';
+
+      const incidents = document.getElementById("history-incidents");
+      incidents.replaceChildren(...history.incidents.map(incident => {
+        const row = document.createElement("div");
+        row.className = "history-row";
+        row.innerHTML = `<span class="${incident.resolved_at ? "UP" : "DOWN"}">${incident.resolved_at ? "Resolved" : "Open"}</span><span>${formatDate(incident.started_at)}</span>`;
+        return row;
+      }));
+      if (!history.incidents.length) incidents.innerHTML = '<p class="empty">No incidents.</p>';
+
+      document.querySelectorAll(".periods [data-hours]").forEach(button => button.classList.toggle("selected", Number(button.dataset.hours) === hours));
+      if (!document.getElementById("history-dialog").open) document.getElementById("history-dialog").showModal();
+    }
+
+    function renderMonitors() {
+      const showArchived = document.getElementById("show-archived").checked;
+      const projects = dashboardProjects.filter(project => showArchived || !project.is_archived);
+      const sections = projects.map(project => {
+        const section = document.createElement("section");
+        section.className = "project";
+        const head = document.createElement("div");
+        head.className = "project-head";
+        head.innerHTML = `<div><h3></h3><p></p></div><div class="project-actions"><span class="status ${project.current_status}">${project.current_status}</span><button>Edit project</button></div>`;
+        head.querySelector("h3").textContent = project.name;
+        head.querySelector("p").textContent = project.description || `${project.monitor_count} monitors`;
+        head.querySelector("button").addEventListener("click", () => openProject(project));
+        section.append(head);
+
+        const projectMonitors = dashboardMonitors.filter(item => item.project_id === project.id);
+        const groups = [
+          ["Active", projectMonitors.filter(item => item.is_active && !item.is_archived)],
+          ["Paused", projectMonitors.filter(item => !item.is_active && !item.is_archived)]
+        ];
+        if (showArchived) groups.push(["Archived", projectMonitors.filter(item => item.is_archived)]);
+        groups.filter(([, items]) => items.length).forEach(([label, items]) => {
+          const group = document.createElement("div");
+          group.className = "monitor-group";
+          const title = document.createElement("h4");
+          title.className = "monitor-group-title";
+          title.textContent = `${label} · ${items.length}`;
+          const grid = document.createElement("div");
+          grid.className = "grid";
+          grid.replaceChildren(...items.map(renderMonitor));
+          group.append(title, grid);
+          section.append(group);
+        });
+        if (!projectMonitors.length) {
+          const empty = document.createElement("p");
+          empty.className = "empty";
+          empty.textContent = "This project does not have any monitors yet.";
+          section.append(empty);
+        }
+        return section;
+      });
+      monitorsEl.replaceChildren(...sections);
+      if (!sections.length) monitorsEl.innerHTML = '<p class="empty">There are no monitors in this view.</p>';
+    }
+
+    function openEdit(monitor) {
+      editForm.elements.id.value = monitor.id;
+      editForm.elements.project_id.value = monitor.project_id;
+      editForm.elements.monitor_type.value = monitor.monitor_type;
+      editForm.elements.name.value = monitor.name;
+      editForm.elements.url.value = monitor.url || "";
+      editForm.elements.interval_seconds.value = monitor.interval_seconds;
+      editForm.elements.timeout_seconds.value = monitor.timeout_seconds;
+      editForm.elements.expected_status_code.value = monitor.expected_status_code;
+      editForm.elements.heartbeat_grace_seconds.value = monitor.heartbeat_grace_seconds;
+      document.getElementById("token-rotated-at").textContent = monitor.heartbeat_token_rotated_at ? `Generated ${formatDate(monitor.heartbeat_token_rotated_at)}` : "No recorded date";
+      editForm.elements.is_archived.checked = monitor.is_archived;
+      const isHeartbeat = monitor.monitor_type === "HEARTBEAT";
+      editForm.querySelectorAll(".edit-http-field").forEach(item => item.classList.toggle("hidden", isHeartbeat));
+      editForm.querySelectorAll(".edit-heartbeat-field").forEach(item => item.classList.toggle("hidden", !isHeartbeat));
+      document.getElementById("edit-error").textContent = "";
+      editDialog.showModal();
+    }
+
+    function populateProjectSelects() {
+      const activeProjects = dashboardProjects.filter(project => !project.is_archived);
+      [
+        [document.getElementById("project-select"), activeProjects],
+        [editForm.elements.project_id, dashboardProjects]
+      ].forEach(([select, projects]) => {
+        const selected = select.value;
+        select.replaceChildren(...projects.map(project => {
+          const option = document.createElement("option");
+          option.value = project.id;
+          option.textContent = project.name;
+          return option;
+        }));
+        if (selected) select.value = selected;
+      });
+    }
+
+    function openProject(project = null) {
+      const form = document.getElementById("project-form");
+      form.elements.id.value = project?.id || "";
+      form.elements.name.value = project?.name || "";
+      form.elements.description.value = project?.description || "";
+      form.elements.is_archived.checked = project?.is_archived || false;
+      document.getElementById("project-archive-row").style.display = project ? "flex" : "none";
+      document.getElementById("project-error").textContent = "";
+      document.getElementById("project-dialog").showModal();
+    }
+
+    function renderIncident(incident, monitorNames) {
+      const row = document.createElement("article");
+      row.className = "incident";
+      const state = incident.resolved_at ? "Resolved" : "Open";
+      row.innerHTML = `<div><strong></strong><br><small></small></div><span class="status ${incident.resolved_at ? "UP" : "DOWN"}">${state}</span>`;
+      row.querySelector("strong").textContent = monitorNames.get(incident.monitor_id) || `Monitor ${incident.monitor_id}`;
+      row.querySelector("small").textContent = incident.resolved_at
+        ? `${formatDate(incident.started_at)} → ${formatDate(incident.resolved_at)}`
+        : `Since ${formatDate(incident.started_at)}`;
+      return row;
+    }
+
+    function renderSystemHealth(health) {
+      const components = [
+        ["web", "Web", { status: "UP", detail: "This dashboard loaded successfully" }],
+        ["api", "API", health.api],
+        ["database", "PostgreSQL", health.database],
+        ["redis", "Redis", health.redis],
+        ["scheduler", "Scheduler", health.scheduler],
+        ["worker", "Worker", health.worker],
+        ["queue", "Queue", health.queue]
+      ];
+      systemHealthEl.replaceChildren(...components.map(([key, name, component]) => {
+        const card = document.createElement("article");
+        card.className = "system-card";
+        const statusClass = component.status === "UP" ? "UP" : component.status === "DOWN" ? "DOWN" : "PENDING";
+        card.innerHTML = `<div class="system-card-top"><strong></strong><span class="status ${statusClass}">${component.status}</span></div><p></p>`;
+        card.querySelector("strong").textContent = name;
+        card.querySelector("p").textContent = component.detail;
+        card.addEventListener("click", () => openSystemHistory(key, name, 24));
+        return card;
+      }));
+    }
+
+    function renderSystemIncident(incident) {
+      const labels = { web: "Web", api: "API", database: "PostgreSQL", redis: "Redis", scheduler: "Scheduler", worker: "Worker", queue: "Queue" };
+      const row = document.createElement("article");
+      row.className = "incident";
+      const state = incident.resolved_at ? "Resolved" : "Open";
+      row.innerHTML = `<div><strong></strong><br><small></small></div><span class="status ${incident.resolved_at ? "UP" : "DOWN"}">${state}</span>`;
+      row.querySelector("strong").textContent = labels[incident.component] || incident.component;
+      row.querySelector("small").textContent = incident.resolved_at
+        ? `${formatDate(incident.started_at)} → ${formatDate(incident.resolved_at)}`
+        : `Since ${formatDate(incident.started_at)} · Status ${incident.current_status}`;
+      row.addEventListener("click", () => openSystemIncident(incident.id));
+      return row;
+    }
+
+    function formatDuration(start, end) {
+      const seconds = Math.max(0, Math.round((new Date(end || Date.now()) - new Date(start)) / 1000));
+      if (seconds < 60) return `${seconds} s`;
+      if (seconds < 3600) return `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
+      return `${Math.floor(seconds / 3600)} h ${Math.floor((seconds % 3600) / 60)} min`;
+    }
+
+    async function openSystemIncident(incidentId) {
+      const labels = { web: "Web", api: "API", database: "PostgreSQL", redis: "Redis", scheduler: "Scheduler", worker: "Worker", queue: "Queue" };
+      const data = await request(`/system/incidents/${incidentId}`);
+      const incident = data.incident;
+      document.getElementById("incident-detail-title").textContent = `${labels[incident.component] || incident.component} incident`;
+      document.getElementById("incident-detail-subtitle").textContent = incident.resolved_at ? "Resolved incident" : "Active incident";
+      document.getElementById("incident-detail-status").textContent = incident.resolved_at ? "RESOLVED" : incident.current_status;
+      document.getElementById("incident-detail-start").textContent = formatDate(incident.started_at);
+      document.getElementById("incident-detail-duration").textContent = formatDuration(incident.started_at, incident.resolved_at);
+      document.getElementById("incident-detail-cause").innerHTML = `<span class="DOWN"></span><span></span>`;
+      document.querySelector("#incident-detail-cause span:first-child").textContent = incident.opening_detail || "No technical details";
+      document.querySelector("#incident-detail-cause span:last-child").textContent = formatDate(incident.opening_checked_at);
+      const samples = document.getElementById("incident-detail-samples");
+      samples.replaceChildren(...data.samples.map(sample => {
+        const row = document.createElement("div");
+        row.className = "history-row";
+        row.innerHTML = `<span class="${sample.status === "UP" ? "UP" : "DOWN"}"></span><span></span>`;
+        row.querySelector("span:first-child").textContent = `${sample.status} · ${sample.detail}`;
+        row.querySelector("span:last-child").textContent = formatDate(sample.checked_at);
+        return row;
+      }));
+      document.getElementById("incident-detail-dialog").showModal();
+    }
+
+    async function openSystemHistory(component, name, hours) {
+      systemHistoryComponent = { component, name };
+      const history = await request(`/system/health/${component}/history?hours=${hours}`);
+      document.getElementById("system-history-title").textContent = `${name} history`;
+      document.getElementById("system-availability").textContent = `${Number(history.summary.availability).toFixed(2)} %`;
+      document.getElementById("system-samples").textContent = history.summary.total_samples;
+      document.getElementById("system-failures").textContent = history.summary.failures;
+      const isQueue = component === "queue";
+      document.getElementById("system-extra-label").textContent = isQueue ? "Maximum queued" : "Average latency";
+      document.getElementById("system-extra").textContent = isQueue ? (history.summary.max_stream_jobs ?? "—") : (history.summary.avg_response_time_ms == null ? "—" : `${Number(history.summary.avg_response_time_ms).toFixed(1)} ms`);
+      const chart = document.getElementById("system-history-chart");
+      chart.replaceChildren(...history.points.map(point => {
+        const bar = document.createElement("div");
+        bar.className = "stacked-bar";
+        const up = Number(point.up_samples);
+        const failed = Number(point.failed_samples);
+        const total = Math.max(1, up + failed);
+        bar.innerHTML = `<div class="bar-failure"></div><div class="bar-success"></div>`;
+        bar.querySelector(".bar-failure").style.height = `${failed / total * 100}%`;
+        bar.querySelector(".bar-success").style.height = `${up / total * 100}%`;
+        bar.title = `${formatDate(point.bucket)} · ${up} successful · ${failed} failed · ${point.availability}%`;
+        return bar;
+      }));
+      if (!history.points.length) chart.innerHTML = '<p class="empty">History will appear after the first sample.</p>';
+      const samples = document.getElementById("system-history-samples");
+      samples.replaceChildren(...history.recent_samples.map(sample => {
+        const row = document.createElement("div");
+        row.className = "history-row";
+        const detail = isQueue ? `${sample.stream_jobs ?? 0} queued · ${sample.pending_jobs ?? 0} processing` : sample.detail;
+        row.innerHTML = `<span class="${sample.status === "UP" ? "UP" : "DOWN"}">${sample.status} · ${detail}</span><span>${formatDate(sample.checked_at)}</span>`;
+        return row;
+      }));
+      if (!history.recent_samples.length) samples.innerHTML = '<p class="empty">No samples yet.</p>';
+      document.querySelectorAll("#system-periods [data-hours]").forEach(button => button.classList.toggle("selected", Number(button.dataset.hours) === hours));
+      const dialog = document.getElementById("system-history-dialog");
+      if (!dialog.open) dialog.showModal();
+    }
+
+    async function load() {
+      try {
+        const [projects, monitors, incidents, systemHealth, systemIncidents, notifications, notificationAttempts, backups] = await Promise.all([request("/projects"), request("/dashboard"), request("/incidents"), request("/system/health"), request("/system/incidents"), request("/notifications/summary"), request("/notifications/attempts?limit=30"), request("/backups/summary")]);
+        dashboardProjects = projects;
+        dashboardMonitors = monitors;
+        populateProjectSelects();
+        renderMonitors();
+        const names = new Map(monitors.map(item => [item.id, item.name]));
+        incidentsEl.replaceChildren(...incidents.map(item => renderIncident(item, names)));
+        if (!incidents.length) incidentsEl.innerHTML = '<p class="empty">No incidents.</p>';
+        const activeProjectIds = new Set(projects.filter(item => !item.is_archived).map(item => item.id));
+        const active = monitors.filter(item => item.is_active && !item.is_archived && activeProjectIds.has(item.project_id));
+        document.getElementById("up-count").textContent = active.filter(item => item.current_status === "UP").length;
+        document.getElementById("problem-count").textContent = active.filter(item => ["DOWN", "DEGRADED", "RECOVERING"].includes(item.current_status)).length;
+        document.getElementById("incident-count").textContent = incidents.filter(item => !item.resolved_at).length;
+        renderSystemHealth(systemHealth);
+        systemIncidentsEl.replaceChildren(...systemIncidents.map(renderSystemIncident));
+        if (!systemIncidents.length) systemIncidentsEl.innerHTML = '<p class="empty">No internal incidents.</p>';
+        document.getElementById("incident-count").textContent = incidents.filter(item => !item.resolved_at).length + systemIncidents.filter(item => !item.resolved_at).length;
+        document.getElementById("notification-sent").textContent = notifications.sent;
+        document.getElementById("notification-pending").textContent = notifications.pending;
+        document.getElementById("notification-failed").textContent = notifications.failed;
+        document.getElementById("notification-last-sent").textContent = notifications.last_sent_at ? `Last delivery ${formatDate(notifications.last_sent_at)}` : "No deliveries";
+        const notificationStatus = document.getElementById("notification-status");
+        notificationStatus.textContent = notifications.current_status;
+        notificationStatus.className = `status ${notifications.current_status === "OPERATIONAL" ? "UP" : notifications.current_status === "DEGRADED" ? "DOWN" : "PENDING"}`;
+        document.getElementById("notification-error").textContent = notifications.last_error
+          ? `Last failed delivery ${formatDate(notifications.last_failure_at)} · ${notifications.last_error}`
+          : "No Slack delivery failures recorded.";
+        renderNotificationAttempts(notificationAttempts);
+        renderBackups(backups);
+        document.getElementById("updated").textContent = `Updated ${formatDate(new Date())}`;
+        document.getElementById("logout").classList.remove("hidden");
+      } catch (error) {
+        document.getElementById("updated").textContent = error.message;
+        if (error.status === 401) {
+          const dialog = document.getElementById("login-dialog");
+          if (!dialog.open) dialog.showModal();
+        }
+      }
+    }
+
+    document.getElementById("refresh").addEventListener("click", load);
+    document.querySelectorAll("[data-view]").forEach(button => button.addEventListener("click", () => selectView(button.dataset.view)));
+    selectView(localStorage.getItem("netsuro-dashboard-view") || "overview");
+    document.getElementById("login-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      try {
+        await request("/auth/login", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.get("email"), password: form.get("password") })
+        });
+        document.getElementById("login-error").textContent = "";
+        document.getElementById("login-dialog").close();
+        event.currentTarget.reset();
+        await load();
+      } catch (error) {
+        document.getElementById("login-error").textContent = error.message;
+      }
+    });
+    document.getElementById("logout").addEventListener("click", async () => {
+      await request("/auth/logout", { method: "POST" });
+      document.getElementById("logout").classList.add("hidden");
+      await load();
+    });
+    document.getElementById("new-monitor").addEventListener("click", () => monitorDialog.showModal());
+    document.getElementById("cancel-monitor").addEventListener("click", () => monitorDialog.close());
+    document.getElementById("close-incident-detail").addEventListener("click", () => document.getElementById("incident-detail-dialog").close());
+    document.getElementById("close-history").addEventListener("click", () => document.getElementById("history-dialog").close());
+    document.getElementById("close-system-history").addEventListener("click", () => document.getElementById("system-history-dialog").close());
+    document.querySelectorAll("#system-periods [data-hours]").forEach(button => button.addEventListener("click", () => openSystemHistory(systemHistoryComponent.component, systemHistoryComponent.name, Number(button.dataset.hours))));
+    document.querySelectorAll("#history-dialog .periods [data-hours]").forEach(button => button.addEventListener("click", () => openHistory(historyMonitorId, Number(button.dataset.hours))));
+    document.getElementById("new-project").addEventListener("click", () => openProject());
+    document.getElementById("show-archived").addEventListener("change", renderMonitors);
+    document.getElementById("cancel-edit").addEventListener("click", () => editDialog.close());
+    document.getElementById("rotate-heartbeat-token").addEventListener("click", async () => {
+      const id = editForm.elements.id.value;
+      if (!confirm("The previous URL will stop working. Generate a new one?")) return;
+      try {
+        const result = await request(`/monitors/${id}/heartbeat-token`, { method: "POST" });
+        const heartbeatUrl = `${location.origin}/api/heartbeats/${result.heartbeat_token}`;
+        prompt("Save this secret URL. It will only be shown once:", heartbeatUrl);
+        document.getElementById("token-rotated-at").textContent = `Generated ${formatDate(result.rotated_at)}`;
+        await load();
+      } catch (error) {
+        document.getElementById("edit-error").textContent = error.message;
+      }
+    });
+    function syncMonitorTypeForm() {
+      const form = document.getElementById("monitor-form");
+      const heartbeat = form.elements.monitor_type.value === "HEARTBEAT";
+      form.querySelectorAll(".http-field").forEach(item => item.classList.toggle("hidden", heartbeat));
+      form.querySelectorAll(".heartbeat-field").forEach(item => item.classList.toggle("hidden", !heartbeat));
+      form.elements.url.required = !heartbeat;
+    }
+    document.getElementById("monitor-type").addEventListener("change", syncMonitorTypeForm);
+    editForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = new FormData(editForm);
+      const id = form.get("id");
+      try {
+        await request(`/monitors/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.get("name"),
+            project_id: Number(form.get("project_id")),
+            interval_seconds: Number(form.get("interval_seconds")),
+            ...(editForm.elements.monitor_type.value === "HTTP" ? {
+              url: form.get("url"),
+              timeout_seconds: Number(form.get("timeout_seconds")),
+              expected_status_code: Number(form.get("expected_status_code"))
+            } : {
+              heartbeat_grace_seconds: Number(form.get("heartbeat_grace_seconds"))
+            }),
+            is_archived: editForm.elements.is_archived.checked
+          })
+        });
+        editDialog.close();
+        await load();
+      } catch (error) {
+        document.getElementById("edit-error").textContent = error.message;
+      }
+    });
+    document.getElementById("delete-monitor").addEventListener("click", async () => {
+      const id = editForm.elements.id.value;
+      const name = editForm.elements.name.value;
+      if (!confirm(`Permanently delete “${name}” and all of its history?`)) return;
+      try {
+        await request(`/monitors/${id}`, { method: "DELETE" });
+        editDialog.close();
+        await load();
+      } catch (error) {
+        document.getElementById("edit-error").textContent = error.message;
+      }
+    });
+    document.getElementById("monitor-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const monitorForm = event.currentTarget;
+      const form = new FormData(monitorForm);
+      const errorEl = document.getElementById("form-error");
+      errorEl.textContent = "";
+      try {
+        const created = await request("/monitors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.get("name"),
+            project_id: Number(form.get("project_id")),
+            monitor_type: form.get("monitor_type"),
+            interval_seconds: Number(form.get("interval_seconds")),
+            ...(form.get("monitor_type") === "HTTP" ? {
+              url: form.get("url"),
+              timeout_seconds: Number(form.get("timeout_seconds")),
+              expected_status_code: Number(form.get("expected_status_code"))
+            } : {
+              heartbeat_grace_seconds: Number(form.get("heartbeat_grace_seconds"))
+            })
+          })
+        });
+        if (created.heartbeat_token) {
+          const heartbeatUrl = `${location.origin}/api/heartbeats/${created.heartbeat_token}`;
+          prompt("Save this secret URL. It will only be shown once:", heartbeatUrl);
+        }
+        monitorForm.reset();
+        monitorForm.elements.interval_seconds.value = 300;
+        monitorForm.elements.timeout_seconds.value = 10;
+        monitorForm.elements.expected_status_code.value = 200;
+        monitorForm.elements.heartbeat_grace_seconds.value = 30;
+        syncMonitorTypeForm();
+        monitorDialog.close();
+        await load();
+      } catch (error) {
+        errorEl.textContent = error.message;
+      }
+    });
+    document.getElementById("cancel-project").addEventListener("click", () => document.getElementById("project-dialog").close());
+    document.getElementById("project-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const id = form.get("id");
+      try {
+        await request(id ? `/projects/${id}` : "/projects", {
+          method: id ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(id ? {
+            name: form.get("name"),
+            description: form.get("description"),
+            is_archived: event.currentTarget.elements.is_archived.checked
+          } : {
+            name: form.get("name"),
+            description: form.get("description")
+          })
+        });
+        document.getElementById("project-dialog").close();
+        await load();
+      } catch (error) {
+        document.getElementById("project-error").textContent = error.message;
+      }
+    });
+
+    load();
+    setInterval(load, 30000);
+  </script>
+</body>
+</html>
