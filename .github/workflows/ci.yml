@@ -42,7 +42,9 @@ jobs:
 
       - name: Check Python syntax and migration chain
         run: |
-          docker compose run --rm --no-deps api python -m compileall -q app migrations
+          docker compose run --rm --no-deps \
+            -e PYTHONPYCACHEPREFIX=/tmp/python-cache \
+            api python -m compileall -q app migrations
           docker compose run --rm --no-deps api alembic heads
 
       - name: Run automated tests
