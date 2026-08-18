@@ -49,3 +49,29 @@ jobs:
 
       - name: Run automated tests
         run: docker compose run --rm --no-deps api pytest -q
+
+      - name: Run integration smoke test
+        run: |
+          docker compose up -d --wait postgres redis api
+
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8000/health/live
+
+          curl --fail --silent --show-error \
+            --cookie-jar /tmp/netsuro-ci-cookies \
+            --header "Content-Type: application/json" \
+            --data '{"email":"ci@example.com","password":"ci-only-admin-password"}' \
+            http://127.0.0.1:8000/auth/login
+
+          curl --fail --silent --show-error \
+            --cookie /tmp/netsuro-ci-cookies \
+            http://127.0.0.1:8000/health/ready
+
+          docker compose exec -T redis redis-cli ping
+          docker compose exec -T api alembic current
+
+      - name: Show integration diagnostics
+        if: failure()
+        run: |
+          docker compose ps --all
+          docker compose logs --no-color --tail=200 postgres redis migrate api
