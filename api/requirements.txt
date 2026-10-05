@@ -1,8 +1,8 @@
-fastapi==0.141.1
-starlette==1.6.0
-psycopg[binary]==3.3.4
-uvicorn==0.52.3
-alembic==1.19.1
-SQLAlchemy==2.0.52
+fastapi==0.142.2
+starlette==1.7.0
+psycopg[binary]==3.3.6
+uvicorn==0.54.0
+alembic==1.20.0
+SQLAlchemy==2.1.2
 httpx==0.28.1
 redis==5.2.1
